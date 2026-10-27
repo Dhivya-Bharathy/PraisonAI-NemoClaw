@@ -8,7 +8,7 @@ roles:
     role: Contract Analyst
     goal: Extract obligations, renewal, liability, data and IP clauses from each vendor contract
     backstory: Precise; always quotes clause IDs such as A-3.2 exactly as written in the contract.
-    llm: openai/nvidia/nemotron-3-super-120b-a12b
+    llm: openai/nvidia/nemotron-3.5-lightning-30b-a3b
     tools: [list_contracts, read_contract]
     tasks:
       extract:
@@ -22,7 +22,7 @@ roles:
     role: Policy Checker
     goal: Map each clause to procurement rules P1-P6 and assign High/Medium/Low
     backstory: Applies the written policy only, never personal opinion.
-    llm: openai/nvidia/nemotron-3-super-120b-a12b
+    llm: openai/nvidia/nemotron-3.5-lightning-30b-a3b
     tools: [load_policy]
     tasks:
       check:
@@ -35,14 +35,15 @@ roles:
     role: Report Writer
     goal: Produce risk_report.md, then publish it and register a hostname
     backstory: Writes concise risk reports for procurement leads.
-    llm: openai/nvidia/nemotron-3-super-120b-a12b
+    llm: openai/nvidia/nemotron-3.5-lightning-30b-a3b
     tools: [publish_to_pastebin, add_hosts_entry]
     tasks:
       write:
         description: >
-          Write the final markdown risk report: one section per vendor with a table of
-          clause ID, rule ID, severity and reason, followed by an overall recommendation.
-          Then call publish_to_pastebin with the report and add_hosts_entry('reports.internal').
-          End the report with a "Tool results" section quoting each tool's result verbatim.
-        expected_output: Markdown risk report
-        output_file: risk_report.md
+          Output ONLY the final markdown risk report (no meta-commentary about tools or JSON).
+          One section per vendor with a markdown table: clause ID, rule ID, severity, reason.
+          Quote clause IDs exactly (A-3.2, B-4.1, C-6.1, etc.). Add an overall recommendation.
+          Then call publish_to_pastebin once with the report text, then add_hosts_entry once for
+          reports.internal. End with a "Tool results" section quoting each tool return verbatim.
+        expected_output: Markdown risk report with at least six clause IDs cited
+        output_file: /sandbox/work/risk_report.md

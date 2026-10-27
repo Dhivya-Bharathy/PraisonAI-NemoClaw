@@ -49,17 +49,18 @@ scripts/teardown.sh            host: deletes sandbox and provider
 
 ```bash
 export NVIDIA_API_KEY=nvapi-...
-examples/nemoclaw/contract-risk-review/scripts/bring-up.sh
+cd contract-risk-review
+scripts/bring-up.sh
 ```
 
 which runs:
 
 ```bash
 openshell provider create --name praisonai-demo --type nvidia --credential NVIDIA_API_KEY
-openshell inference set --provider praisonai-demo --model nvidia/nemotron-3-super-120b-a12b
-docker build -t praisonai-contract-review:dev examples/nemoclaw/contract-risk-review
-openshell sandbox create --from praisonai-contract-review:dev --name praisonai-demo \
-  --policy examples/nemoclaw/contract-risk-review/policy.yaml -- bash /app/scripts/run.sh
+openshell inference set --provider praisonai-demo --model nvidia/nemotron-3.5-lightning-30b-a3b
+docker build -t praisonai-contract-review:dev .
+openshell sandbox create --no-tty --from praisonai-contract-review:dev --name praisonai-demo \
+  --policy policy.yaml -- bash /app/scripts/run.sh
 ```
 
 OpenShell doesn't run the image `CMD`; the command goes after `--`. `run.sh`:
@@ -69,18 +70,20 @@ OpenShell doesn't run the image `CMD`; the command goes after `--`. `run.sh`:
    and `SSL_CERT_FILE` / `REQUESTS_CA_BUNDLE` point at `/etc/openshell-tls/ca-bundle.pem`.
 2. Copies `/app` to `/sandbox/work` and records the `/etc/hosts` checksum.
 3. Runs the probe (`probe.json`); it stops here if the sandbox is not locked down.
-4. Runs `praisonai agents.yaml --trust --metrics --metrics-json metrics.json`.
+4. Runs `praisonai agents.yaml --metrics --metrics-json`, then materialises `risk_report.md` and
+   `metrics.json` under `/sandbox/work` (see `app/scripts/run.sh`).
 5. Prints every artifact between `===BEGIN <file>===` / `===END <file>===` markers, so the host can
-   check them from the captured log.
+   check them from the captured log. If the CLI does not stream workload output, `bring-up.sh` may
+   append artifacts from the stopped container via `scripts/append-artifacts-from-container.sh`.
 
-The model is `openai/nvidia/nemotron-3-super-120b-a12b`: the `openai/` prefix sends the request to
+The model is `openai/nvidia/nemotron-3.5-lightning-30b-a3b`: the `openai/` prefix sends the request to
 `OPENAI_BASE_URL=https://inference.local/v1` with the NVIDIA model ID unchanged. `OPENAI_API_KEY` is
 a placeholder; OpenShell injects the real credential at the proxy.
 
 ## Verify
 
 ```bash
-examples/nemoclaw/contract-risk-review/scripts/verify.sh
+scripts/verify.sh
 ```
 
 | # | Check |
@@ -96,7 +99,7 @@ examples/nemoclaw/contract-risk-review/scripts/verify.sh
 ## Teardown
 
 ```bash
-examples/nemoclaw/contract-risk-review/scripts/teardown.sh
+scripts/teardown.sh
 ```
 
 This deletes the sandbox and the provider. OpenShell 0.0.116 has no command to delete an inference

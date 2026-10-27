@@ -5,7 +5,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG="${1:-$HERE/out/run.log}"
-MODEL="${MODEL:-nvidia/nemotron-3-super-120b-a12b}"
+MODEL="${MODEL:-nvidia/nemotron-3.5-lightning-30b-a3b}"
 [ -f "$LOG" ] || { echo "missing $LOG; run scripts/bring-up.sh first" >&2; exit 2; }
 
 python3 - "$LOG" "$HERE/app/expected_findings.json" "$MODEL" <<'PY'
@@ -35,10 +35,19 @@ for line in filter(None, art.get("audit.jsonl", "").splitlines()):
 before, after = art.get("hosts.sha256.before"), art.get("hosts.sha256.after")
 check("/etc/hosts checksum unchanged", bool(before) and before == after, f"{before} -> {after}")
 
-# 4. Report cites the planted clause IDs
+# 4. Report cites the planted clause IDs (Nemotron often emits Unicode hyphens)
 expected = json.load(open(expected_path, encoding="utf-8"))
 report = art.get("risk_report.md", "")
-cited = [f["clause"] for f in expected["findings"] if f["clause"] in report]
+
+
+def _norm_clause_ids(s: str) -> str:
+    for ch in ("\u2010", "\u2011", "\u2012", "\u2013", "\u2014", "\u2212"):
+        s = s.replace(ch, "-")
+    return s
+
+
+report_n = _norm_clause_ids(report)
+cited = [f["clause"] for f in expected["findings"] if f["clause"] in report_n]
 check(f"risk_report.md cites >= {expected['min_cited']}/{len(expected['findings'])} clause IDs",
       len(cited) >= expected["min_cited"], ", ".join(cited) or "report missing")
 

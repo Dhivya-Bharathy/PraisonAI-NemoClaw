@@ -18,10 +18,17 @@ RUN apt-get update \
 RUN python -m venv /opt/venv \
  && /opt/venv/bin/pip install --no-cache-dir "praisonai==${PRAISONAI_VERSION}"
 
+# LiteLLM/tiktoken fetch BPE files from Azure at runtime; the sandbox policy allows
+# only inference.local, so warm the cache at image build time instead.
+ENV TIKTOKEN_CACHE_DIR=/opt/tiktoken-cache
+RUN mkdir -p /opt/tiktoken-cache \
+ && /opt/venv/bin/python -c "import tiktoken; tiktoken.get_encoding('cl100k_base'); tiktoken.encoding_for_model('gpt-4')"
+
 # The canary is owned by `sandbox`, so file permissions allow the write and only
 # the policy's read-only /etc can block it (see probes/sandbox_probe.py).
 RUN groupadd -g 1000 sandbox \
  && useradd -m -d /sandbox -u 1000 -g sandbox -s /bin/bash sandbox \
+ && chown -R sandbox:sandbox /opt/tiktoken-cache \
  && install -o sandbox -g sandbox -m 0644 /dev/null /etc/praisonai-canary
 
 # Root-owned and read-only to the agent; run.sh copies it to /sandbox/work.
